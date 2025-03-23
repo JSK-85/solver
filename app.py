@@ -8,11 +8,9 @@ from algorithms.FW import *
 import os
 import json
 import matplotlib
-import io
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 import numpy as np
-import ast
 
 app = Flask(__name__)
 
@@ -117,19 +115,50 @@ def dijkstra_solver():
 
 @app.route('/graph/floyd-warshall', methods=["GET", "POST"])
 def floyd_warshall():
-    matrix = None
-    result = None  
-    size = None  
+    result = None
+    error = None
 
     if request.method == 'POST':
         try:
-            size = int(request.form.get('size', 0))
-            matrix = [[int(request.form.get(f'matrix-{i}-{j}', 0)) for j in range(size)] for i in range(size)]
-            result = floydwarshall(size, matrix) 
-        except ValueError:
-            return render_template("floyd.html", error="Invalid input! Please enter numbers only.")
-    
-    return render_template('floyd.html', matrix=matrix, result=result, size=size)
+            # Get the matrix input as a string
+            matrix_str = request.form.get('matrix', '').strip()
+            
+            # Try to evaluate the string as a Python list
+            try:
+                matrix = eval(matrix_str)
+            except:
+                error = "Invalid matrix format. Please enter a valid 2D list."
+                return render_template('floyd.html', result=result, error=error)
+            
+            # Validate the matrix
+            if not isinstance(matrix, list) or not matrix:
+                error = "Matrix must be a non-empty 2D list"
+                return render_template('floyd.html', result=result, error=error)
+            
+            size = len(matrix)
+            if not all(isinstance(row, list) and len(row) == size for row in matrix):
+                error = "Matrix must be square (same number of rows and columns)"
+                return render_template('floyd.html', result=result, error=error)
+            
+            if size < 2 or size > 10:
+                error = "Matrix size must be between 2 and 10"
+                return render_template('floyd.html', result=result, error=error)
+            
+            # Validate matrix values
+            for row in matrix:
+                for val in row:
+                    if not isinstance(val, (int, float)) or (val < 0 and val != 999):
+                        error = "All values must be non-negative numbers (use 999 for infinity)"
+                        return render_template('floyd.html', result=result, error=error)
+            
+            result = floydwarshall(size, matrix)
+
+        except Exception as e:
+            error = f"An error occurred: {str(e)}"
+            return render_template('floyd.html', result=result, error=error)
+
+    return render_template('floyd.html', result=result, error=error)
+
 
 @app.route('/ml/linear-regression', methods=['GET', 'POST'])
 def linear_regression():
